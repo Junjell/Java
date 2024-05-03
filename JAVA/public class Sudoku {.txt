@@ -1,0 +1,304 @@
+public class Sudoku {
+
+    private static final int MAX_COL = 9;
+    private static final int MAX_ROW = 9;
+    private static final int MAX_HINTS = 9;
+    private static final int EXACT_CELL_REFERENCE_LENGTH = 2;
+
+    private static int[][] sudokuProblem = {
+            {0, 0, 0, 0, 4, 0, 9, 0, 0},
+            {0, 8, 0, 6, 7, 0, 0, 0, 0},
+            {9, 0, 2, 8, 0, 0, 4, 0, 0},
+            {0, 9, 1, 0, 0, 0, 0, 0, 0},
+            {0, 4, 0, 3, 6, 0, 0, 0, 2},
+            {0, 0, 0, 0, 0, 0, 5, 0, 4},
+            {0, 0, 0, 0, 0, 0, 7, 0, 1},
+            {0, 2, 8, 0, 0, 1, 0, 3, 0},
+            {1, 0, 3, 7, 0, 6, 8, 0, 0}
+    };
+
+    private static int[][] sudokuAnswer = new int[MAX_ROW][MAX_COL];
+
+    // Declaring boxCoords array
+    private static int[] boxCoords = new int[2];
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        boolean isExit = false;
+        int[] cellCoords = new int[2];
+        int[] uniqueHints = new int[MAX_HINTS];
+        String[] choices = {
+                "Provide an answer for this cell",
+                "Check another cell",
+                "Reset the Puzzle",
+                "Exit the application"
+        };
+
+        initInputInterface(scanner);
+        resetPuzzle();
+
+        while (!isExit && !isPuzzleComplete()) {
+            printPuzzle(sudokuAnswer);
+            initPuzzleAnalyzer(cellCoords, uniqueHints, scanner);
+            System.out.println();
+            switch (menu("What do you like to perform? ", choices, 4, scanner)) {
+                case 0:
+                    initAnswerInterface(cellCoords[0], cellCoords[1], uniqueHints, scanner);
+                    break;
+                case 1:
+                    // No action needed
+                    break;
+                case 2:
+                    resetPuzzle();
+                    break;
+                case 3:
+                    isExit = true;
+                    break;
+                default:
+                    System.out.println("Incorrect choice made");
+            }
+        }
+        printPuzzle(sudokuAnswer);
+        System.out.println("Congratulations, you have completed the puzzle!");
+    }
+
+    private static void initInputInterface(Scanner scanner) {
+        System.out.println("Please provide the Sudoku Puzzle Program with the Sudoku Problem.");
+        System.out.println("Please enter the values for each row in the following format (Example: 103706800): ");
+
+        for (int row = 0; row < MAX_ROW; row++) {
+            String rowValue;
+            boolean isValidRowStr = false;
+            do {
+                System.out.print("Please enter value for Row # " + (row + 1) + ": ");
+                rowValue = scanner.nextLine();
+                isValidRowStr = isValidRowValue(rowValue);
+                if (!isValidRowStr) {
+                    System.out.println("You have provided an incorrect value.");
+                }
+            } while (!isValidRowStr);
+            rowValueAssignment(row, rowValue);
+        }
+    }
+
+    private static boolean isValidRowValue(String rowValueStr) {
+        boolean isExactLength = (rowValueStr.length() == MAX_ROW), isAllDigits = true;
+        if (isExactLength) {
+            for (int x = 0; x < MAX_ROW; x++)
+                isAllDigits = isAllDigits && Character.isDigit(rowValueStr.charAt(x));
+        }
+        return isExactLength && isAllDigits;
+    }
+
+    private static void rowValueAssignment(int row, String rowValueStr) {
+        for (int x = 0; x < MAX_COL; x++)
+            sudokuProblem[row][x] = sudokuAnswer[row][x] = Character.getNumericValue(rowValueStr.charAt(x));
+    }
+
+    private static void initPuzzleAnalyzer(int[] cellCoords, int[] uniqueHints, Scanner scanner) {
+        String cellReference;
+        int boxRow, boxColumn;
+        int[] rowHints = new int[MAX_HINTS];
+        int[] columnHints = new int[MAX_HINTS];
+        int[] boxHints = new int[MAX_HINTS];
+        int[] columnValues = new int[MAX_COL];
+        int[] boxValues = new int[MAX_ROW];
+
+        do {
+            System.out.print("What cell would you like to analyze? ");
+            cellReference = scanner.nextLine();
+        } while (!isValidCellCoordinates(cellReference));
+
+        getCellCoordinates(cellReference, cellCoords);
+        System.out.println("Cell Coordinates (" + cellCoords[1] + "," + cellCoords[0] + ")");
+        getBoxCoordinates(cellCoords[0], cellCoords[1], boxCoords);
+        System.out.println("Box Coordinates (" + boxCoords[1] + "," + boxCoords[0] + ")");
+
+        getColumnValues(cellCoords[1], columnValues);
+        System.out.print("\nRow Values: ");
+        printValues(sudokuAnswer[cellCoords[0]]);
+        System.out.print("\nColumn Values: ");
+        printValues(columnValues);
+        getBoxValues(boxCoords[0], boxCoords[1], boxValues);
+        System.out.print("\nBox Values: ");
+        printValues(boxValues);
+        System.out.println();
+
+        getHints(sudokuAnswer[cellCoords[0]], rowHints);
+        getHints(columnValues, columnHints);
+        getHints(boxValues, boxHints);
+        System.out.print("\nRow Hints: ");
+        printValues(rowHints);
+        System.out.print("\nColumn Hints: ");
+        printValues(columnHints);
+        System.out.print("\nBox Hints: ");
+        printValues(boxHints);
+        System.out.println();
+
+        getUniqueHints(rowHints, columnHints, boxHints, uniqueHints);
+        System.out.print("\nPossible Answers: ");
+        printValues(uniqueHints);
+    }
+
+    private static boolean isValidCellCoordinates(String cellReference) {
+        boolean isExactLength = (cellReference.length() == EXACT_CELL_REFERENCE_LENGTH), isValidColumn, isValidRow;
+
+        if (isExactLength) {
+            isValidColumn = (Character.toUpperCase(cellReference.charAt(0)) >= 'A' && Character.toUpperCase(cellReference.charAt(0)) <= 'I');
+            isValidRow = (cellReference.charAt(1) >= '1' && cellReference.charAt(1) <= '9');
+        } else {
+            return false;
+        }
+
+        return isValidColumn && isValidRow;
+    }
+
+    private static void getCellCoordinates(String cellReference, int[] cellCoords) {
+        cellCoords[0] = Character.getNumericValue(cellReference.charAt(1)) - 1;
+        cellCoords[1] = Character.toUpperCase(cellReference.charAt(0)) - 'A';
+    }
+
+    private static void getBoxCoordinates(int row, int column, int[] boxCoords) {
+        boxCoords[0] = (row - (row % 3)) / 3;
+        boxCoords[1] = (column - (column % 3)) / 3;
+    }
+
+    private static void getColumnValues(int column, int[] columnValues) {
+        for (int row = 0; row < MAX_ROW; row++)
+            columnValues[row] = sudokuAnswer[row][column];
+    }
+
+    private static void getBoxValues(int boxRow, int boxColumn, int[] boxValues) {
+        int startRow = boxRow * 3, endRow = startRow + 2;
+        int startCol = boxColumn * 3, endCol = startCol + 2;
+        int valueIndex = 0;
+
+        for (int row = startRow; row <= endRow; row++) {
+            for (int col = startCol; col <= endCol; col++) {
+                boxValues[valueIndex++] = sudokuAnswer[row][col];
+            }
+        }
+    }
+
+    private static void printValues(int[] values) {
+        int valCount = 0;
+        for (int num : values) {
+            if (num > 0) {
+                if (valCount > 0) System.out.print(", ");
+                System.out.print(num);
+                valCount++;
+            }
+        }
+    }
+
+    private static void getHints(int[] values, int[] hints) {
+        for (int hint = 0; hint < 9; hint++) {
+            hints[hint] = hint + 1;
+        }
+
+        for (int hint = 0; hint < 9; hint++) {
+            if (values[hint] > 0) {
+                hints[values[hint] - 1] = 0;
+            }
+        }
+    }
+
+    private static void getUniqueHints(int[] rowHints, int[] columnHints, int[] boxHints, int[] uniqueHints) {
+        for (int hint = 0; hint < 9; hint++) {
+            boolean isPossibleHint = (rowHints[hint] == hint + 1 && columnHints[hint] == hint + 1 && boxHints[hint] == hint + 1);
+            uniqueHints[hint] = (isPossibleHint) ? hint + 1 : 0;
+        }
+    }
+
+    private static void initAnswerInterface(int cellRow, int cellColumn, int[] uniqueHints, Scanner scanner) {
+        boolean isCorrectAnswerProvided = false;
+        String answer;
+
+        while (!isCorrectAnswerProvided) {
+            System.out.print("Provide your answer: ");
+            answer = scanner.nextLine();
+
+            if (answer.length() == 1) {
+                if (Character.isDigit(answer.charAt(0)) && isInUniqueHints(Character.getNumericValue(answer.charAt(0)), uniqueHints)) {
+                    sudokuAnswer[cellRow][cellColumn] = Character.getNumericValue(answer.charAt(0));
+                    isCorrectAnswerProvided = true;
+                }
+            }
+            if (!isCorrectAnswerProvided) {
+                System.out.println("Invalid Answer Provided");
+            }
+        }
+    }
+
+    private static boolean isInUniqueHints(int answer, int[] uniqueHints) {
+        for (int hint : uniqueHints) {
+            if (hint == answer) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isPuzzleComplete() {
+        for (int row = 0; row < MAX_ROW; row++) {
+            for (int col = 0; col < MAX_COL; col++) {
+                if (sudokuAnswer[row][col] == 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static void resetPuzzle() {
+        for (int row = 0; row < MAX_ROW; row++) {
+            System.arraycopy(sudokuProblem[row], 0, sudokuAnswer[row], 0, MAX_COL);
+        }
+    }
+
+    private static int menu(String question, String[] choices, int choiceCount, Scanner scanner) {
+        int choice = -1;
+        System.out.println(question);
+        for (int x = 0; x < choiceCount; x++) {
+            System.out.println((x + 1) + " - " + choices[x]);
+        }
+        System.out.print("Please enter your choice: ");
+        choice = scanner.nextInt();
+        scanner.nextLine(); // Consume newline character
+        if (choice >= 1 && choice <= choiceCount) {
+            return choice - 1;
+        }
+        return -1;
+    }
+
+    private static void printPuzzle(int[][] sudokuPuzzle) {
+        char[] rowLabels = {'1', '2', '3', '4', '5', '6', '7', '8', '9'};
+        char[] colLabels = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'};
+
+        for (int x = 0; x < MAX_COL; x++) {
+            if (x == 0)
+                System.out.print("    " + colLabels[x]);
+            else
+                System.out.print("   " + colLabels[x]);
+        }
+        System.out.println("\n  ┌────────────────────┐");
+
+        for (int row = 0; row < MAX_ROW; row++) {
+            for (int col = 0; col < MAX_COL; col++) {
+                if (col == 0) System.out.print(rowLabels[row] + " │");
+                if (col % 3 == 0 && col != 0) System.out.print("│ ");
+                if (sudokuPuzzle[row][col] != 0)
+                    System.out.print(" " + sudokuPuzzle[row][col]);
+                else
+                    System.out.print("  ");
+                if (col == MAX_COL - 1) System.out.print("│");
+            }
+
+            System.out.println();
+
+            if (row % 3 == 2 && row != MAX_ROW - 1)
+                System.out.println("  ├───────┼───────┼───────┤");
+        }
+        System.out.println("  └────────────────────┘");
+    }
+}
